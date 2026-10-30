@@ -3,6 +3,9 @@
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.tensorfold.deepseek-v41.plist"""
 
 import shutil
+import os
+import tempfile
+from dataclasses import fields
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -13,7 +16,18 @@ LABEL = "com.tensorfold.deepseek-v41"
 
 def plist(s: Settings, port: int) -> str:
     python = shutil.which("python3") or "/usr/bin/python3"
-    env = {"PORT": str(port), "HOST": "0.0.0.0", "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"}
+    env = {"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"}
+    # launchd does not inherit this shell. Preserve explicitly supplied recipe overrides only.
+    for field in fields(s):
+        name = field.name.upper()
+        if name in os.environ:
+            value = getattr(s, field.name)
+            env[name] = str(value).lower() if isinstance(value, bool) else str(value)
+    if s.api_key:
+        env["API_KEY"] = s.api_key
+    if os.environ.get("TENSORFOLD_API_KEY"):
+        env["TENSORFOLD_API_KEY"] = os.environ["TENSORFOLD_API_KEY"]
+    env.update(PORT=str(port), HOST="0.0.0.0")
     env_xml = "".join(f"<key>{k}</key><string>{escape(v)}</string>" for k, v in env.items())
     log = escape(str(s.cache / "launchd.log"))
     return f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -37,5 +51,15 @@ def plist(s: Settings, port: int) -> str:
 
 def write(s: Settings, port: int) -> str:
     path = Path.home() / "Library" / "LaunchAgents" / f"{LABEL}.plist"
-    path.write_text(plist(s, port))
-    return f"wrote {path} (not loaded): launchctl bootstrap gui/$(id -u) {path}"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    s.cache.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as f:
+        temporary = Path(f.name)
+        try:
+            f.write(plist(s, port))
+            f.close()
+            temporary.replace(path)
+        finally:
+            temporary.unlink(missing_ok=True)
+    warning = "warning: this unit serves the LAN without an API key\n" if not (s.api_key or os.environ.get("TENSORFOLD_API_KEY")) else ""
+    return warning + f"wrote {path} (not loaded): launchctl bootstrap gui/$(id -u) {path}"
