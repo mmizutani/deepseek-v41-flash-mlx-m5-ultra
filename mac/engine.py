@@ -17,6 +17,7 @@ XGRAMMAR_COMMIT = "97787376faee5ed8466cfad57c99855e4ce2f6aa"
 XGRAMMAR_REPO = "https://github.com/mlc-ai/xgrammar"
 
 JPEG_URL = f"https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/{JPEG_VERSION}/libjpeg-turbo-{JPEG_VERSION}.tar.gz"
+ZIG_VERSION = "0.17.0"
 
 
 def _run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
@@ -29,6 +30,12 @@ def zig_executable(s: Settings) -> str:
     if not executable:
         raise SystemExit(f"Zig executable not found: {s.zig!r}. Install Zig 0.17.0 on PATH, "
                          "or set [engine] zig in local.toml (or ZIG) to its executable path.")
+    try:
+        version = subprocess.run([executable, "version"], capture_output=True, text=True, check=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError) as e:
+        raise SystemExit(f"cannot check Zig version at {executable}: {e}") from None
+    if version != ZIG_VERSION:
+        raise SystemExit(f"Zig {ZIG_VERSION} required; {executable} reports {version!r}. Set ZIG or [engine] zig to the pinned version.")
     return executable
 
 
