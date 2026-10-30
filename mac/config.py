@@ -139,6 +139,16 @@ def _coerce(kind: type, raw):
 
 def load(local_file: Path | None = None, env: dict[str, str] | None = None) -> Settings:
     env = os.environ if env is None else env
+    recipe = ROOT / "recipe.toml"
+    if not recipe.is_file():
+        raise SystemExit(f"required recipe missing: {recipe}; restore it from this checkout")
+    defaults = {}
+    for section in tomllib.loads(recipe.read_text()).values():
+        defaults.update(section)
+    # developer_dir is an optional machine-specific override; every recipe default is explicit.
+    missing = {fld.name for fld in fields(Settings)} - {"developer_dir"} - defaults.keys()
+    if missing:
+        raise SystemExit(f"{recipe}: missing defaults: {', '.join(sorted(missing))}")
     merged: dict = {}
     for f in (ROOT / "recipe.toml", local_file or ROOT / "local.toml"):
         if f.exists():
