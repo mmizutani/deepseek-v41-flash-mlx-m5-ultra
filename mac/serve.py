@@ -4,10 +4,12 @@ import json
 import os
 import signal
 import subprocess
+import tempfile
 import time
 import urllib.request
 
 from .config import Settings
+from pathlib import Path
 
 
 def weights_gib(s: Settings) -> float:
@@ -62,10 +64,28 @@ def wait_ready(s: Settings, proc: int, limit: float = 900) -> None:
     raise SystemExit(f"not ready after {limit:.0f} s; see {s.log_file}")
 
 
+def prepare_key(s: Settings) -> None:
+    """Keep a literal configured key out of argv, using the engine's reloadable labelled key file."""
+    if not s.api_key:
+        return
+    if any(char.isspace() for char in s.api_key):
+        raise SystemExit("api_key must not contain whitespace")
+    s.cache.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode="w", dir=s.cache, delete=False) as f:
+        temporary = Path(f.name)
+        try:
+            f.write(f"wrapper:{s.api_key}\n")
+            f.close()
+            temporary.replace(s.cache / "server-api-key")
+        finally:
+            temporary.unlink(missing_ok=True)
+
+
 def up(s: Settings, foreground: bool = False) -> None:
     if pid(s) or health(s):
         raise SystemExit(f"already serving at {s.url}")
     memory_check(s)
+    prepare_key(s)
     args = s.serve_args()
     if foreground:  # the launchd unit: this process becomes the server
         os.execve(args[0], args, s.server_env())
@@ -103,7 +123,12 @@ def status(s: Settings) -> str:
 
 def chat(s: Settings, prompt: str, max_tokens: int = 128) -> str:
     body = {"model": s.served_name, "max_tokens": max_tokens, "messages": [{"role": "user", "content": prompt}]}
+    headers = {"content-type": "application/json"}
+    key = s.api_key or next((value.strip() for value in os.environ.get("TENSORFOLD_API_KEY", "").split(",")
+                             if value.strip()), "")
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
     req = urllib.request.Request(s.url + "/chat/completions", data=json.dumps(body).encode(),
-                                 headers={"content-type": "application/json"})
+                                 headers=headers)
     with urllib.request.urlopen(req, timeout=600) as r:
         return json.load(r)["choices"][0]["message"]["content"]

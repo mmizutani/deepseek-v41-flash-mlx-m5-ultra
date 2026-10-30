@@ -114,7 +114,7 @@ class Settings:
             if self.vision_urls:
                 a.append("--vision-urls")
         if self.api_key:
-            a += ["--api-key", self.api_key]
+            a += ["--api-key-file", str(self.cache / "server-api-key")]
         a += self.extra_args.split()
         a.append(str(self.model))
         return a
