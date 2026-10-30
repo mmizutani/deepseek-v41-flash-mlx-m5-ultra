@@ -31,6 +31,8 @@ import time
 import mlx.core as mx
 import numpy as np
 
+from checkpoint_config import engram_files
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "ref"))
 
@@ -317,11 +319,12 @@ def main():
         cfg[k] = hf_cfg[k]
     cfg["vision_config"] = hf_cfg["vision_config"]
     old_cfg = os.path.join(a.out, "config.json")
+    existing = json.load(open(old_cfg)) if os.path.exists(old_cfg) else {}
     if "blocks" not in parts and os.path.exists(old_cfg):  # a partial run keeps the experts' widths it did not write
-        kept = json.load(open(old_cfg))["quantization"]
+        kept = existing["quantization"]
         quant_cfg = {**kept, **{k: v for k, v in quant_cfg.items() if k not in ("bits", "group_size", "mode")}}
     cfg["quantization"] = quant_cfg
-    cfg["engram_files"] = {str(layer): f"engram/layer{layer}.safetensors" for layer in text["engram_layer_ids"]}
+    cfg["engram_files"] = engram_files(text["engram_layer_ids"], parts, existing)
     cfg["source"] = {"repo": "deepseek-ai/DeepSeek-V4.1-Flash-1017", "expert_bits": a.expert_bits,
                      "layer_bits": a.layer_bits, "dense_bits": a.dense_bits,
                      "block_dense_bits": a.block_dense_bits or a.dense_bits}
