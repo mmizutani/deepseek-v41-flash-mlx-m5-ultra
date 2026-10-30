@@ -2,6 +2,7 @@
 
 import os
 import tomllib
+import shlex
 from dataclasses import dataclass, fields
 from pathlib import Path
 
@@ -115,7 +116,10 @@ class Settings:
                 a.append("--vision-urls")
         if self.api_key:
             a += ["--api-key", self.api_key]
-        a += self.extra_args.split()
+        try:
+            a += shlex.split(self.extra_args)
+        except ValueError as e:
+            raise SystemExit(f"invalid extra_args (local.toml or EXTRA_ARGS): {e}") from None
         a.append(str(self.model))
         return a
 
