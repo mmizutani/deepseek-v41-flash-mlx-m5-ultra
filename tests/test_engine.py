@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from mac import config, engine
 
@@ -15,6 +15,7 @@ class EngineTest(unittest.TestCase):
             s.developer_dir = "/Applications/Xcode.app/Contents/Developer"
             s.worktree.mkdir(parents=True)
             with patch("mac.engine.shutil.which", return_value="/opt/bin/zig") as which, \
+                 patch("mac.engine.subprocess.run", return_value=Mock(stdout="0.17.0\n")), \
                  patch("mac.engine._run") as run:
                 engine.build_engine(s)
             which.assert_called_once_with("zig")
@@ -31,7 +32,8 @@ class EngineTest(unittest.TestCase):
 
     def test_explicit_zig_path_expands_home(self):
         s = config.Settings(zig="~/tools/zig")
-        with patch("mac.engine.shutil.which", return_value="/custom/zig") as which:
+        with patch("mac.engine.shutil.which", return_value="/custom/zig") as which, \
+             patch("mac.engine.subprocess.run", return_value=Mock(stdout="0.17.0\n")):
             self.assertEqual(engine.zig_executable(s), "/custom/zig")
         which.assert_called_once_with(str(Path.home() / "tools/zig"))
 
