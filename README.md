@@ -287,7 +287,7 @@ git clone -b deepseek-v41-main https://github.com/BobClawblaw/TensorFold ~/githu
 hf download BobClawblaw/DeepSeek-V4.1-Flash-1017-TensorFold-e2e3-p4-h8 \
     --local-dir ~/models/DeepSeek-V4.1-Flash-1017-TF-mix23-d8b4
 cp local.example.toml local.toml      # this Mac's overrides; edit paths and the port there
-python3 -m mac validate               # settings, checkpoint and build, without starting anything
+python3 -m mac validate               # checks settings/checkpoint; reports whether the engine is built
 python3 -m mac up                     # builds the pinned engine, libjpeg-turbo and libtfgrammar once, then serves
 ```
 

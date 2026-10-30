@@ -1,6 +1,8 @@
 """Settings: recipe.toml's defaults, local.toml's overrides for this Mac, then environment variables in upper case."""
 
 import os
+import json
+import math
 import tomllib
 from dataclasses import dataclass, fields
 from pathlib import Path
@@ -157,10 +159,64 @@ def load(local_file: Path | None = None, env: dict[str, str] | None = None) -> S
 def validate(s: Settings) -> list[str]:
     """The settings' problems, worded for the user (empty: none)."""
     out = []
+    if not s.model_dir.strip():
+        out.append("model_dir must not be empty")
+    if not 1 <= s.port <= 65535:
+        out.append("port must be 1 to 65535")
+    if not s.host.strip():
+        out.append("host must not be empty")
+    if s.context < 1 or s.max_tokens < 1 or s.max_tokens > s.context:
+        out.append("context and max_tokens must be positive, with max_tokens <= context")
+    if s.thinking_reserve < 0:
+        out.append("thinking_reserve must be nonnegative")
+    if not math.isfinite(s.memory_margin_gib) or s.memory_margin_gib < 0:
+        out.append("memory_margin_gib must be finite and nonnegative")
+    if not math.isfinite(s.prompt_cache_gib):
+        out.append("prompt_cache_gib must be finite (negative values use the engine default)")
+    if s.binary and not (s.run_binary.is_file() and os.access(s.run_binary, os.X_OK)):
+        out.append(f"binary is not executable: {s.run_binary}")
+    if not s.binary and not s.built_binary.exists() and not s.worktree.exists():
+        if not s.tensorfold_src or not (s.path(s.tensorfold_src) / ".git").exists():
+            out.append("tensorfold_src must point to a Git checkout for the first build")
+    if s.developer_dir and not s.path(s.developer_dir).is_dir():
+        out.append(f"developer_dir does not exist: {s.developer_dir}")
     if not s.binary and not s.tensorfold_sha:
         out.append("no engine: set tensorfold_sha (local.toml) or binary")
     if not (s.model / "config.json").exists():
         out.append(f"no converted checkpoint at {s.model}: python3 -m mac convert")
+    else:
+        try:
+            cfg = json.loads((s.model / "config.json").read_text())
+            if not isinstance(cfg, dict):
+                raise ValueError("expected an object")
+            maximum = cfg.get("max_position_embeddings")
+            if isinstance(maximum, int) and s.context > maximum:
+                out.append(f"context exceeds checkpoint maximum {maximum}")
+            tables = cfg.get("engram_files", {str(n): f"engram/layer{n}.safetensors"
+                                               for n in cfg.get("engram_layer_ids", [])})
+            if not isinstance(tables, dict):
+                raise ValueError("engram_files must be an object")
+            for value in tables.values():
+                names = [value] if isinstance(value, str) else value
+                if not isinstance(names, list) or not names or any(not isinstance(n, str) or not n for n in names):
+                    raise ValueError("engram_files entries must name a file or a nonempty list of files")
+                for name in names:
+                    if not (s.model / name).is_file():
+                        out.append(f"missing Engram table: {s.model / name}")
+        except (OSError, ValueError, TypeError) as e:
+            out.append(f"invalid checkpoint config.json: {e}")
+    if not (s.model / "tokenizer.json").is_file():
+        out.append(f"missing tokenizer: {s.model / 'tokenizer.json'}")
+    try:
+        index = json.loads((s.model / "model.safetensors.index.json").read_text())
+        weights = index.get("weight_map") if isinstance(index, dict) else None
+        if not isinstance(weights, dict) or not weights or any(not isinstance(n, str) or not n for n in weights.values()):
+            raise ValueError("weight_map must be a nonempty object naming shard files")
+        for name in sorted(set(weights.values())):
+            if not (s.model / name).is_file():
+                out.append(f"missing weight shard: {s.model / name}")
+    except (OSError, ValueError, TypeError) as e:
+        out.append(f"invalid checkpoint model.safetensors.index.json: {e}")
     if not (s.model / "engram" / "hash.safetensors").exists():
         out.append(f"{s.model} has no engram tables (engram/): convert again without --only")
     if s.parallel < 1 or s.parallel > 4:

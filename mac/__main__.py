@@ -62,6 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     elif a.cmd == "validate":
         problems = config.validate(s)
         print("\n".join(problems) if problems else "ok")
+        print(f"engine: {s.run_binary}" if s.run_binary.exists() else "engine: not built yet; up will build it")
         print(shlex.join(s.serve_args()))
         return 1 if problems else 0
     return 0
