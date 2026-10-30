@@ -306,6 +306,7 @@ The server speaks the OpenAI API at `http://127.0.0.1:8890/v1`, model `DeepSeek-
 | `python3 -m mac chat "..."` | one prompt to the running server |
 | `python3 -m mac down` | stops the server |
 | `python3 -m mac command` | prints the serve command `up` runs |
+| `python3 -m mac pi-setup` | registers the endpoint with Pi coding agent and makes it the default |
 
 **Running at login:** `python3 -m mac launchd --port 8888` writes a launchd unit that serves the LAN at login. Loading
 it is up to you:
@@ -320,6 +321,72 @@ else that loads the model, since two copies do not fit in 256 GB.
 **Converting from the release instead of downloading:** with `deepseek-ai/DeepSeek-V4.1-Flash-1017` at `1bae0e10` in
 the Hugging Face cache, run `python3 -m mac convert`, then `python3 tools/split_engram.py MODEL_DIR` to split the
 Engram tables as the Hub copy is.
+
+### Pi coding agent
+
+With [Pi coding agent](https://pi.dev/) installed, run these commands from this checkout:
+
+```sh
+python3 -m mac pi-setup
+python3 -m mac up                 # skip if already serving
+pi
+```
+
+`pi-setup` adds the `local-deepseek` provider to `~/.pi/agent/models.json` and selects
+`local-deepseek/DeepSeek-V4.1-Flash` as the default for new sessions in `settings.json`. It uses the effective
+`recipe.toml`, `local.toml` and environment settings: the URL (normally `http://127.0.0.1:8890/v1`), served model
+name, context window, maximum output tokens, image support and API key. Setup does not need Pi installed or the
+server running; rerun it after changing those server settings. A wildcard server host (`0.0.0.0`) becomes
+`127.0.0.1` in Pi's URL, for use on the same Mac. Overrides such as `PORT=9100` must also be used when starting
+the server.
+
+Other providers, models and settings are preserved. The matching local model entry is replaced with the generated
+configuration. Changed existing files are copied to `backup-local-deepseek-<timestamp>/` inside the agent directory
+before writing; unchanged files are left alone. Invalid JSON is reported without changing either configuration
+file. To undo setup, restore the backed-up files and remove any configuration files setup created without a previous
+version.
+
+To register the model while keeping your current default:
+
+```sh
+python3 -m mac pi-setup --no-default
+pi --model local-deepseek/DeepSeek-V4.1-Flash
+```
+
+For an isolated Pi profile, use the same agent directory for setup and Pi:
+
+```sh
+python3 -m mac pi-setup --agent-dir ~/.pi/deepseek
+PI_CODING_AGENT_DIR=~/.pi/deepseek pi
+```
+
+`--agent-dir` takes precedence over `PI_CODING_AGENT_DIR`, then `~/.pi/agent`. Pi's `auth.json` is left untouched.
+For an authenticated server, setup copies the configured `api_key` as a literal into `models.json` (written with
+mode `0600`); rerun setup after rotating it. Without authentication, the dummy key `local` makes the model available
+in Pi without a login. Pi may prefer an existing credential for `local-deepseek` in `auth.json` over this key.
+
+To check discovery and send a short prompt:
+
+```sh
+pi --offline --list-models local-deepseek
+pi --offline --model local-deepseek/DeepSeek-V4.1-Flash --no-session --no-tools --thinking off -p 'Reply with only OK.'
+```
+
+For the isolated profile above, prefix both verification commands with `PI_CODING_AGENT_DIR=~/.pi/deepseek`.
+If you changed `served_name`, use that model ID in place of `DeepSeek-V4.1-Flash`.
+
+`--offline` disables Pi's startup network operations; inference still calls the configured server. In an existing
+Pi session, open `/model` to reload the model list and select the local model; resumed sessions retain their previous
+model. Use `/thinking` to choose `off`, `minimal`, `low`, `medium`, `high` or `max`. The generated configuration uses
+Chat Completions, `max_tokens`, system messages, and TensorFold's `enable_thinking` / `reasoning_effort` controls
+(Pi names this parameter format `qwen`; the model remains DeepSeek). Image support follows the recipe's `vision`
+and `vision_max_images` settings. No inference charges are assigned to this local provider in Pi's usage display.
+
+If requests cannot connect, check `python3 -m mac status` and that Pi's configured URL matches the running server.
+If the model is missing, check `models.json` in the agent directory Pi actually uses and rerun `pi-setup` there.
+This integration was checked with Pi 1.4.0. See Pi's
+[compatible endpoint guide](https://pi.dev/docs/latest/models#configure-a-compatible-endpoint) and
+[model configuration reference](https://pi.dev/docs/latest/models-configuration) for the underlying format.
 
 ## Settings
 
