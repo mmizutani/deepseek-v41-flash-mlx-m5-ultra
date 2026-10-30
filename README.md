@@ -275,6 +275,7 @@ Notes on the table:
   - Python 3.11 or newer
   - `cmake` (for libjpeg-turbo)
   - `git`
+  - Xcode with its Metal Toolchain (Command Line Tools alone are insufficient)
   - the `hf` CLI to download the checkpoint
 - **Disk:** about 420 GB for the checkpoint, plus the engine build.
 
@@ -289,6 +290,12 @@ cp local.example.toml local.toml      # this Mac's overrides; edit paths and the
 python3 -m mac validate               # settings, checkpoint and build, without starting anything
 python3 -m mac up                     # builds the pinned engine, libjpeg-turbo and libtfgrammar once, then serves
 ```
+
+The build finds `zig` on your `PATH` (`zig version` must report 0.17.0). For a custom installation, set
+`zig = "/path/to/zig"` under `[engine]` in `local.toml`, or use the `ZIG` environment variable.
+If `xcode-select -p` points to Command Line Tools, also set
+`developer_dir = "/Applications/Xcode.app/Contents/Developer"` under `[engine]`. Install the Metal component with
+`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -downloadComponent MetalToolchain`.
 
 The server speaks the OpenAI API at `http://127.0.0.1:8890/v1`, model `DeepSeek-V4.1-Flash`. Other commands:
 

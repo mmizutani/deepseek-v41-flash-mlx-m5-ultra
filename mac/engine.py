@@ -19,9 +19,17 @@ XGRAMMAR_REPO = "https://github.com/mlc-ai/xgrammar"
 JPEG_URL = f"https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/{JPEG_VERSION}/libjpeg-turbo-{JPEG_VERSION}.tar.gz"
 
 
-def _run(cmd: list[str], cwd: Path | None = None) -> None:
+def _run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
     print("+", " ".join(cmd), flush=True)
-    subprocess.run(cmd, cwd=cwd, check=True)
+    subprocess.run(cmd, cwd=cwd, env=env, check=True)
+
+
+def zig_executable(s: Settings) -> str:
+    executable = shutil.which(str(s.path(s.zig))) if s.zig else None
+    if not executable:
+        raise SystemExit(f"Zig executable not found: {s.zig!r}. Install Zig 0.17.0 on PATH, "
+                         "or set [engine] zig in local.toml (or ZIG) to its executable path.")
+    return executable
 
 
 def build_engine(s: Settings, rebuild: bool = False) -> Path:
@@ -34,7 +42,7 @@ def build_engine(s: Settings, rebuild: bool = False) -> Path:
         s.worktree.parent.mkdir(parents=True, exist_ok=True)
         _run(["git", "-C", str(src), "worktree", "add", "--detach", str(s.worktree), s.tensorfold_sha])
     if rebuild or not s.built_binary.exists():
-        _run([s.path(s.zig).as_posix(), "build", "native", "-Doptimize=ReleaseFast", f"-Dcpu={s.zig_cpu}"], cwd=s.worktree)
+        _run([zig_executable(s), "build", "native", "-Doptimize=ReleaseFast", f"-Dcpu={s.zig_cpu}"], cwd=s.worktree, env=s.build_env())
     return s.built_binary
 
 
@@ -72,7 +80,7 @@ def build_grammar(s: Settings, rebuild: bool = False) -> Path:
     head = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
     if head != XGRAMMAR_COMMIT:
         raise SystemExit(f"{root} is at {head[:8]}, not xgrammar {XGRAMMAR_TAG}'s {XGRAMMAR_COMMIT[:8]}; remove it to clone again")
-    _run([s.path(s.zig).as_posix(), "build", "grammar", f"-Dxgrammar={root}", f"-Dcpu={s.zig_cpu}"], cwd=s.worktree)
+    _run([zig_executable(s), "build", "grammar", f"-Dxgrammar={root}", f"-Dcpu={s.zig_cpu}"], cwd=s.worktree, env=s.build_env())
     if not s.built_grammar.exists():
         raise SystemExit(f"the build left no {s.built_grammar}")
     return s.built_grammar

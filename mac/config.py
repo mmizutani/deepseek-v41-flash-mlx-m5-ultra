@@ -23,6 +23,7 @@ class Settings:
     tensorfold_sha: str = ""
     zig: str = ""
     zig_cpu: str = "native"
+    developer_dir: str = ""
     binary: str = ""
     host: str = "127.0.0.1"
     port: int = 8890
@@ -121,6 +122,12 @@ class Settings:
     def server_env(self) -> dict[str, str]:
         env = dict(os.environ)
         env["TENSORFOLD_LIBTURBOJPEG"] = str(self.jpeg_lib)
+        return env
+
+    def build_env(self) -> dict[str, str]:
+        env = dict(os.environ)
+        if self.developer_dir:
+            env["DEVELOPER_DIR"] = str(self.path(self.developer_dir))
         return env
 
 
