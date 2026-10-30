@@ -133,24 +133,39 @@ class Settings:
 
 def _coerce(kind: type, raw):
     if kind is bool:
-        return raw if isinstance(raw, bool) else str(raw).lower() in ("1", "true", "yes", "on")
+        if isinstance(raw, bool):
+            return raw
+        value = str(raw).lower()
+        if value not in ("1", "true", "yes", "on", "0", "false", "no", "off"):
+            raise ValueError(f"expected a boolean, got {raw!r}")
+        return value in ("1", "true", "yes", "on")
     return kind(raw)
 
 
 def load(local_file: Path | None = None, env: dict[str, str] | None = None) -> Settings:
     env = os.environ if env is None else env
     merged: dict = {}
+    sections = {"model", "engine", "local", "serve"}
+    names = {fld.name for fld in fields(Settings)}
     for f in (ROOT / "recipe.toml", local_file or ROOT / "local.toml"):
         if f.exists():
-            for section in tomllib.loads(f.read_text()).values():
+            for name, section in tomllib.loads(f.read_text()).items():
+                if name not in sections or not isinstance(section, dict):
+                    raise SystemExit(f"{f}: unknown or invalid section {name!r}")
+                unknown = section.keys() - names
+                if unknown:
+                    raise SystemExit(f"{f}: unknown settings: {', '.join(sorted(unknown))}")
                 merged.update(section)
     s = Settings()
     for fld in fields(Settings):
         kind = type(getattr(s, fld.name))
-        if fld.name in merged:
-            setattr(s, fld.name, _coerce(kind, merged[fld.name]))
-        if fld.name.upper() in env:
-            setattr(s, fld.name, _coerce(kind, env[fld.name.upper()]))
+        try:
+            if fld.name in merged:
+                setattr(s, fld.name, _coerce(kind, merged[fld.name]))
+            if fld.name.upper() in env:
+                setattr(s, fld.name, _coerce(kind, env[fld.name.upper()]))
+        except (ValueError, TypeError) as e:
+            raise SystemExit(f"invalid setting {fld.name} ({fld.name.upper()}): {e}") from None
     return s
 
 
