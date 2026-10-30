@@ -1,11 +1,12 @@
-"""python3 -m mac up|down|status|logs|build|convert|command|chat|validate|launchd"""
+"""python3 -m mac up|down|status|logs|build|convert|command|chat|validate|launchd|pi-setup"""
 
 import argparse
 import shlex
 import subprocess
 import sys
+from pathlib import Path
 
-from . import config, engine, launchd, serve
+from . import config, engine, launchd, pi, serve
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -27,6 +28,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("validate", help="check the settings, the checkpoint and the build without starting anything")
     ld = sub.add_parser("launchd", help="write the launchd unit (not loaded) serving PORT to the LAN")
     ld.add_argument("--port", type=int, default=8888)
+    ps = sub.add_parser("pi-setup", help="configure Pi coding agent to use this endpoint (no server required)")
+    ps.add_argument("--agent-dir", type=Path, help="Pi agent directory (default: PI_CODING_AGENT_DIR or ~/.pi/agent)")
+    ps.add_argument("--no-default", action="store_true", help="register the model without changing Pi's default")
     a = p.parse_args(argv)
     s = config.load()
     if a.cmd == "up":
@@ -59,6 +63,11 @@ def main(argv: list[str] | None = None) -> int:
         print(serve.chat(s, a.prompt, a.max_tokens))
     elif a.cmd == "launchd":
         print(launchd.write(s, a.port))
+    elif a.cmd == "pi-setup":
+        try:
+            print("\n".join(pi.setup(s, a.agent_dir, make_default=not a.no_default)))
+        except (OSError, ValueError) as e:
+            raise SystemExit(str(e)) from None
     elif a.cmd == "validate":
         problems = config.validate(s)
         print("\n".join(problems) if problems else "ok")
