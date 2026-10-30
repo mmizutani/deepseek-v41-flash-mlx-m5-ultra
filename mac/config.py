@@ -1,8 +1,8 @@
 """Settings: recipe.toml's defaults, local.toml's overrides for this Mac, then environment variables in upper case."""
 
 import os
-import shlex
 import tomllib
+import shlex
 from dataclasses import dataclass, fields
 from pathlib import Path
 
