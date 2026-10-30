@@ -314,6 +314,8 @@ it is up to you:
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.tensorfold.deepseek-v41.plist
 ```
 
+See [login service configuration](docs/launchd.md) for preserved overrides and authentication at login.
+
 That unit is kept alive: a killed server restarts 30 s later. Stop it with `launchctl bootout` before running anything
 else that loads the model, since two copies do not fit in 256 GB.
 
