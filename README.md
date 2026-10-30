@@ -279,6 +279,9 @@ Notes on the table:
   - the `hf` CLI to download the checkpoint
 - **Disk:** about 420 GB for the checkpoint, plus the engine build.
 
+The serving wrapper uses the standard library. See [optional Python tools and checks](docs/python-tools.md) for
+conversion/reference dependencies and lightweight test commands.
+
 ## Running it
 
 ```sh
