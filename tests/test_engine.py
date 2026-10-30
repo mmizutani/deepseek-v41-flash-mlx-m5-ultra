@@ -7,7 +7,8 @@ from mac import config, engine
 
 
 class EngineTest(unittest.TestCase):
-    def test_default_zig_uses_path(self):
+    @patch("mac.engine.verify_worktree")
+    def test_default_zig_uses_path(self, _verify):
         s = config.load(Path("/nonexistent"), env={})
         self.assertEqual(s.zig, "zig")
         with tempfile.TemporaryDirectory() as root:
@@ -21,7 +22,8 @@ class EngineTest(unittest.TestCase):
             self.assertEqual(run.call_args.args[0][0], "/opt/bin/zig")
             self.assertEqual(run.call_args.kwargs["env"]["DEVELOPER_DIR"], s.developer_dir)
 
-    def test_missing_zig_has_actionable_error(self):
+    @patch("mac.engine.verify_worktree")
+    def test_missing_zig_has_actionable_error(self, _verify):
         with tempfile.TemporaryDirectory() as root:
             s = config.Settings(tf_cache=root, tensorfold_sha="abc", zig="/missing/zig")
             s.worktree.mkdir(parents=True)
