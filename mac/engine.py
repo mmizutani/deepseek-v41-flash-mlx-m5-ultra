@@ -32,6 +32,20 @@ def zig_executable(s: Settings) -> str:
     return executable
 
 
+def verify_worktree(s: Settings) -> None:
+    try:
+        head = subprocess.run(["git", "-C", str(s.worktree), "rev-parse", "HEAD"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+        dirty = subprocess.run(["git", "-C", str(s.worktree), "status", "--porcelain", "--untracked-files=no"],
+                               capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError) as e:
+        raise SystemExit(f"cannot verify engine worktree {s.worktree}: {e}") from None
+    if head != s.tensorfold_sha:
+        raise SystemExit(f"{s.worktree} is at {head}, not pinned {s.tensorfold_sha}; use a clean worktree at the pinned commit")
+    if dirty:
+        raise SystemExit(f"{s.worktree} has modified tracked files; restore a clean pinned worktree before building or serving")
+
+
 def build_engine(s: Settings, rebuild: bool = False) -> Path:
     if s.binary:
         return s.run_binary
@@ -39,8 +53,12 @@ def build_engine(s: Settings, rebuild: bool = False) -> Path:
         raise SystemExit("no tensorfold_sha pinned (local.toml)")
     src = s.path(s.tensorfold_src)
     if not s.worktree.exists():
+        probe = subprocess.run(["git", "-C", str(src), "rev-parse", "--git-dir"], capture_output=True, text=True)
+        if probe.returncode:
+            raise SystemExit(f"tensorfold_src is not a Git checkout: {src}; set [engine] tensorfold_src in local.toml")
         s.worktree.parent.mkdir(parents=True, exist_ok=True)
         _run(["git", "-C", str(src), "worktree", "add", "--detach", str(s.worktree), s.tensorfold_sha])
+    verify_worktree(s)
     if rebuild or not s.built_binary.exists():
         _run([zig_executable(s), "build", "native", "-Doptimize=ReleaseFast", f"-Dcpu={s.zig_cpu}"], cwd=s.worktree, env=s.build_env())
     return s.built_binary
