@@ -266,6 +266,9 @@ Notes on the table:
 
 ## Requirements
 
+The serving wrapper uses the standard library. See [optional Python tools and checks](docs/python-tools.md) for
+conversion/reference dependencies and lightweight test commands.
+
 - **Hardware:** a Mac with 256 GB of unified memory. The weights take about 200 GiB; the Engram tables (189 GiB) are
   read from disk where lookups land.
 - **Chip:** measured on an M5 Ultra, where prompt chunks use the GPU's tensor units. Older chips take the plain

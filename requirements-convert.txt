@@ -1,0 +1,3 @@
+# Optional conversion from the original release; requires Apple Silicon macOS.
+-r requirements-reference.txt
+mlx
