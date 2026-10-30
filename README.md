@@ -266,6 +266,8 @@ Notes on the table:
 
 ## Requirements
 
+For the optional template compatibility check, see the [bundled encoder fixtures](template/fixtures/README.md).
+
 - **Hardware:** a Mac with 256 GB of unified memory. The weights take about 200 GiB; the Engram tables (189 GiB) are
   read from disk where lookups land.
 - **Chip:** measured on an M5 Ultra, where prompt chunks use the GPU's tensor units. Older chips take the plain
