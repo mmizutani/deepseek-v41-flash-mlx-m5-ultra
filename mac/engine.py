@@ -18,9 +18,9 @@ XGRAMMAR_TAG = "v0.2.8"
 XGRAMMAR_COMMIT = "97787376faee5ed8466cfad57c99855e4ce2f6aa"
 XGRAMMAR_REPO = "https://github.com/mlc-ai/xgrammar"
 
-JPEG_URL = f"https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/{JPEG_VERSION}/libjpeg-turbo-{JPEG_VERSION}.tar.gz"
 # Published SHA-256 for the source asset in libjpeg-turbo's 3.1.4.1 GitHub release.
 JPEG_SHA256 = "ecae8008e2cc9ade2f2c1bb9d5e6d4fb73e7c433866a056bd82980741571a022"
+JPEG_URL = f"https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/{JPEG_VERSION}/libjpeg-turbo-{JPEG_VERSION}.tar.gz"
 
 
 def _run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
