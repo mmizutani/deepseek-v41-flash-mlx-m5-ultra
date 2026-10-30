@@ -99,7 +99,7 @@ def expected(case, thinking, effort):
 
 
 def fixtures():
-    d = os.path.join(HERE, "..", "ref", "encoding", "tests")
+    d = os.path.join(HERE, "fixtures")
     for i in range(1, 6):
         for case in E.load_cases(os.path.join(d, f"test_input_{i}.json")):
             want = open(os.path.join(d, f"test_output_{i}.txt")).read()
