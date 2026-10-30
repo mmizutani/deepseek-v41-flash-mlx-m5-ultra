@@ -3,9 +3,11 @@ checkout), libjpeg-turbo 3.1.4.1 built from its release beside it (the engine's 
 libtfgrammar (structured output) from xgrammar at the tag the engine pins."""
 
 import shutil
+import hashlib
 import ssl
 import subprocess
 import tarfile
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -17,6 +19,8 @@ XGRAMMAR_COMMIT = "97787376faee5ed8466cfad57c99855e4ce2f6aa"
 XGRAMMAR_REPO = "https://github.com/mlc-ai/xgrammar"
 
 JPEG_URL = f"https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/{JPEG_VERSION}/libjpeg-turbo-{JPEG_VERSION}.tar.gz"
+# Published SHA-256 for the source asset in libjpeg-turbo's 3.1.4.1 GitHub release.
+JPEG_SHA256 = "ecae8008e2cc9ade2f2c1bb9d5e6d4fb73e7c433866a056bd82980741571a022"
 
 
 def _run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
@@ -46,18 +50,38 @@ def build_engine(s: Settings, rebuild: bool = False) -> Path:
     return s.built_binary
 
 
+def jpeg_archive(work: Path) -> Path:
+    tgz = work / f"libjpeg-turbo-{JPEG_VERSION}.tar.gz"
+    if tgz.exists():
+        with tgz.open("rb") as f:
+            digest = hashlib.file_digest(f, "sha256").hexdigest()
+        if digest != JPEG_SHA256:
+            raise SystemExit(f"SHA-256 mismatch for cached {tgz}; remove this archive and retry")
+        return tgz
+    print("downloading", JPEG_URL, flush=True)
+    ctx = ssl.create_default_context(cafile="/etc/ssl/cert.pem")
+    with tempfile.NamedTemporaryFile(dir=work, prefix="jpeg-", suffix=".part", delete=False) as f:
+        temporary = Path(f.name)
+        try:
+            with urllib.request.urlopen(JPEG_URL, context=ctx, timeout=60) as r:
+                shutil.copyfileobj(r, f)
+            f.close()
+            with temporary.open("rb") as source:
+                digest = hashlib.file_digest(source, "sha256").hexdigest()
+            if digest != JPEG_SHA256:
+                raise SystemExit(f"SHA-256 mismatch downloading {JPEG_URL}; archive was not cached or extracted")
+            temporary.replace(tgz)
+        finally:
+            temporary.unlink(missing_ok=True)
+    return tgz
+
+
 def build_jpeg(s: Settings) -> Path:
     if s.jpeg_lib.exists():
         return s.jpeg_lib
     work = s.cache / "jpeg-src"
     work.mkdir(parents=True, exist_ok=True)
-    tgz = work / f"libjpeg-turbo-{JPEG_VERSION}.tar.gz"
-    if not tgz.exists():
-        print("downloading", JPEG_URL, flush=True)
-        # python.org's Python ships no CA store: the system's bundle
-        ctx = ssl.create_default_context(cafile="/etc/ssl/cert.pem")
-        with urllib.request.urlopen(JPEG_URL, context=ctx) as r, open(tgz, "wb") as f:
-            shutil.copyfileobj(r, f)
+    tgz = jpeg_archive(work)
     with tarfile.open(tgz) as t:
         t.extractall(work, filter="data")
     srcdir = work / f"libjpeg-turbo-{JPEG_VERSION}"
