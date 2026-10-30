@@ -323,6 +323,8 @@ Engram tables as the Hub copy is.
 
 ## Settings
 
+See [server authentication](docs/authentication.md) for configuring credentials and using authenticated `chat` requests.
+
 All of these are in `recipe.toml`'s `[serve]`. `local.toml` overrides them, and so does an environment variable of
 the same name in upper case.
 

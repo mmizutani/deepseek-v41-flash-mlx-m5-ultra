@@ -108,13 +108,13 @@ class Settings:
             a += ["--prompt-cache-gib", f"{self.prompt_cache_gib:g}"]
             if self.prompt_cache_over_cap and self.prompt_cache_gib > 0:
                 a.append("--prompt-cache-over-cap")
+        if self.api_key:
+            a += ["--api-key-file", str(self.cache / "server-api-key")]
         if self.vision:
             a += ["--vision", "--vision-image-tokens", str(self.vision_image_tokens),
                   "--vision-max-images", str(self.vision_max_images)]
             if self.vision_urls:
                 a.append("--vision-urls")
-        if self.api_key:
-            a += ["--api-key", self.api_key]
         a += self.extra_args.split()
         a.append(str(self.model))
         return a

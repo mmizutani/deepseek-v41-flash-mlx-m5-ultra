@@ -54,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
         print("+", shlex.join(cmd), flush=True)
         return subprocess.run(cmd).returncode
     elif a.cmd == "command":
-        print(f"TENSORFOLD_LIBTURBOJPEG={s.jpeg_lib} " + shlex.join(s.serve_args()))
+        print(f"TENSORFOLD_LIBTURBOJPEG={shlex.quote(str(s.jpeg_lib))} " + shlex.join(s.serve_args()))
     elif a.cmd == "chat":
         print(serve.chat(s, a.prompt, a.max_tokens))
     elif a.cmd == "launchd":
