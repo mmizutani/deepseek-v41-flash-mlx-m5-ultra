@@ -272,7 +272,7 @@ Notes on the table:
   kernels with `zig_cpu = "apple_m1"`; not measured.
 - **Software:**
   - [Zig 0.17.0](https://ziglang.org/download/) for the engine
-  - Python 3.11 or newer
+  - Python 3.11.4 or newer (tar extraction filters are required)
   - `cmake` (for libjpeg-turbo)
   - `git`
   - Xcode with its Metal Toolchain (Command Line Tools alone are insufficient)
